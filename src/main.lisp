@@ -5,19 +5,19 @@
 ;;; ---------------------------------------------------------------------------
 
 (defun setup-signal-handlers ()
-  "終了シグナルに対してクリーンアップを登録する"
-  #+sbcl
-  (sb-sys:enable-interrupt
-   sb-unix:sigterm
-   (lambda (sig code scp)
-     (declare (ignore sig code scp))
-     (shutdown 0)))
-  #+sbcl
-  (sb-sys:enable-interrupt
-   sb-unix:sigint
-   (lambda (sig code scp)
-     (declare (ignore sig code scp))
-     (shutdown 0))))
+  "終了シグナルに対してクリーンアップを登録する (Unix/Linux環境のみ)"
+  #+(and sbcl (not win32))
+  (progn
+    (sb-sys:enable-interrupt
+     sb-unix:sigterm
+     (lambda (sig code scp)
+       (declare (ignore sig code scp))
+       (shutdown 0)))
+    (sb-sys:enable-interrupt
+     sb-unix:sigint
+     (lambda (sig code scp)
+       (declare (ignore sig code scp))
+       (shutdown 0)))))
 
 (defun shutdown (exit-code)
   "サーバーとスケジューラーを停止してプロセスを終了する"
@@ -34,9 +34,9 @@
       cl-booth-order-manager.api:*port*))
 
 (defun main ()
-  (format t "=== BOOTH Library Manager v0.2.0 ===~%")
+  (format t "=== BOOTH Order Manager v0.2.0 ===~%")
 
-  ;; シグナルハンドラー設定
+  ;; シグナルハンドラー設定 (対応OSのみ)
   (setup-signal-handlers)
 
   ;; DB初期化
