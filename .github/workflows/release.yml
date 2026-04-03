@@ -27,14 +27,6 @@ jobs:
                --eval "(quicklisp-quickstart:install)" `
                --eval "(quit)"
 
-      - name: Install project dependencies
-        shell: cmd
-        run: |
-          sbcl --load "%USERPROFILE%\quicklisp\setup.lisp" ^
-               --eval "(push (truename \".\") ql:*local-project-directories*)" ^
-               --eval "(ql:quickload :cl-booth-order-manager :silent t)" ^
-               --eval "(quit)"
-
       - name: Build CL backend
         shell: cmd
         run: sbcl --script build.lisp

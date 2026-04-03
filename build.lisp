@@ -1,9 +1,8 @@
-;;; CLバックエンドをスタンドアロン実行ファイルとしてビルドするスクリプト
-;;; 使い方: sbcl --script build.lisp
+(load (merge-pathnames "quicklisp/setup.lisp" (user-homedir-pathname)))
 
-(load (merge-pathnames "setup.lisp"
-                       (merge-pathnames "quicklisp/"
-                                        (user-homedir-pathname))))
+(push (truename ".") ql:*local-project-directories*)
+
+(ql:register-local-projects)
 
 (ql:quickload :cl-booth-order-manager :silent t)
 
@@ -13,4 +12,4 @@
    (merge-pathnames "booth-backend.exe" out-dir)
    :toplevel #'cl-booth-order-manager:main
    :executable t
-   :compression t))  ; SBCLビルドオプションでcore compressionを有効化
+   :compression t))

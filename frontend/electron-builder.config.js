@@ -4,7 +4,7 @@
 module.exports = {
   appId: 'pm.booth.order-manager',
   productName: 'BOOTH Library Manager',
-  copyright: 'Copyright © 2024 dodocha169',
+  copyright: 'Copyright © 2024 iamlinggggg',
 
   directories: {
     output: 'release',
