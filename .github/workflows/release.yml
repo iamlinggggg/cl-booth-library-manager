@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SBCL
+        run: choco install sbcl --yes
+
+      - name: Install Quicklisp
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://beta.quicklisp.org/quicklisp.lisp" -OutFile "$env:TEMP\quicklisp.lisp"
+          sbcl --load "$env:TEMP\quicklisp.lisp" `
+               --eval "(quicklisp-quickstart:install)" `
+               --eval "(quit)"
+
+      - name: Install project dependencies
+        shell: cmd
+        run: |
+          sbcl --load "%USERPROFILE%\quicklisp\setup.lisp" ^
+               --eval "(push (truename \".\") ql:*local-project-directories*)" ^
+               --eval "(ql:quickload :cl-booth-order-manager :silent t)" ^
+               --eval "(quit)"
+
+      - name: Build CL backend
+        shell: cmd
+        run: sbcl --script build.lisp
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Electron app
+        working-directory: frontend
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist:win
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            frontend/release/*.exe
+            frontend/release/*.yml
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

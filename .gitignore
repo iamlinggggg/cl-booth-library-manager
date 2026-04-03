@@ -1,3 +1,4 @@
+# Common Lisp
 *.FASL
 *.fasl
 *.lisp-temp
@@ -15,3 +16,35 @@
 *.sx32fsl
 *.wx64fsl
 *.wx32fsl
+
+# Build output
+dist-cl/
+frontend/dist/
+frontend/release/
+frontend/node_modules/
+
+# Database (ユーザーデータ)
+*.db
+*.db-shm
+*.db-wal
+
+# Debug & Logs
+debug-*.html
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# IDE & Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
