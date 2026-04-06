@@ -26,7 +26,7 @@ jobs:
           cd ..
           # .asd は sed で更新
           sed -i "s/:version \"[^\"]*\"/:version \"$VERSION\"/" cl-booth-library-manager.asd
-          echo "package.json version: $(node -p \"require('./frontend/package.json').version\")"
+          node -p "require('./frontend/package.json').version"
 
       - name: Install SBCL
         run: choco install sbcl --yes
