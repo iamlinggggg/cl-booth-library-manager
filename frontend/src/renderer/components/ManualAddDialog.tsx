@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { ItemInfo, ManualOrderInput } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Order, ItemInfo, ManualOrderInput } from '../types';
 import { useApi } from '../hooks/useApi';
 
 interface Props {
   onClose: () => void;
   onAdded: () => void;
+  editOrder?: Order;
 }
 
 interface DLEntry {
@@ -14,21 +15,42 @@ interface DLEntry {
   type: 'url' | 'local';
 }
 
-export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
-  const { get, post } = useApi();
+function detectType(url: string): 'url' | 'local' {
+  return url.startsWith('http://') || url.startsWith('https://') ? 'url' : 'local';
+}
 
-  const [itemUrl, setItemUrl] = useState('');
-  const [itemName, setItemName] = useState('');
-  const [shopName, setShopName] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [price, setPrice] = useState('');
+export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded, editOrder }) => {
+  const { get, post, put } = useApi();
+  const isEdit = editOrder != null;
+
+  const [itemUrl, setItemUrl] = useState(editOrder?.itemUrl ?? '');
+  const [itemName, setItemName] = useState(editOrder?.itemName ?? '');
+  const [shopName, setShopName] = useState(editOrder?.shopName ?? '');
+  const [thumbnailUrl, setThumbnailUrl] = useState(editOrder?.thumbnailUrl ?? '');
+  const [price, setPrice] = useState(editOrder?.price ? String(editOrder.price) : '');
   const [dlEntries, setDlEntries] = useState<DLEntry[]>([{ id: 1, label: '', url: '', type: 'url' }]);
   const [preview, setPreview] = useState<ItemInfo | null>(null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // URLから商品情報を自動取得
+  // 編集モード: 既存のDLリンクを取得して初期値に設定
+  useEffect(() => {
+    if (!isEdit || !editOrder) return;
+    get<{ label: string; url: string }[]>(`/api/orders/${editOrder.id}/downloads`)
+      .then((links) => {
+        if (links.length > 0) {
+          setDlEntries(links.map((l, i) => ({
+            id: i + 1,
+            label: l.label,
+            url: l.url,
+            type: detectType(l.url),
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [isEdit, editOrder?.id]);
+
   const fetchItemInfo = async () => {
     if (!itemUrl.trim()) return;
     setFetchingInfo(true);
@@ -48,10 +70,7 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
   };
 
   const addDlEntry = () => {
-    setDlEntries((prev) => [
-      ...prev,
-      { id: Date.now(), label: '', url: '', type: 'url' },
-    ]);
+    setDlEntries((prev) => [...prev, { id: Date.now(), label: '', url: '', type: 'url' }]);
   };
 
   const removeDlEntry = (id: number) => {
@@ -59,9 +78,7 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
   };
 
   const updateDlEntry = (id: number, field: 'label' | 'url' | 'type', value: string) => {
-    setDlEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, [field]: value } : e))
-    );
+    setDlEntries((prev) => prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)));
   };
 
   const selectFolder = async (id: number) => {
@@ -71,10 +88,7 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemName.trim()) {
-      setError('商品名は必須です');
-      return;
-    }
+    if (!itemName.trim()) { setError('商品名は必須です'); return; }
 
     const validLinks = dlEntries.filter((e) => e.url.trim());
     setSubmitting(true);
@@ -92,7 +106,11 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
           url: e.url.trim(),
         })),
       };
-      await post('/api/orders', input);
+      if (isEdit && editOrder) {
+        await put(`/api/orders/${editOrder.id}`, input);
+      } else {
+        await post('/api/orders', input);
+      }
       onAdded();
       onClose();
     } catch (e) {
@@ -106,7 +124,9 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <h2 className="text-lg font-bold text-white">商品を手動登録</h2>
+          <h2 className="text-lg font-bold text-white">
+            {isEdit ? '商品を編集' : '商品を手動登録'}
+          </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -115,7 +135,7 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* 商品URL (任意) */}
+          {/* 商品URL */}
           <div>
             <label className="block text-sm text-gray-300 mb-1">商品URL (省略可)</label>
             <div className="flex gap-2">
@@ -205,22 +225,17 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
                       className="w-24 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5
                                  text-white text-sm focus:outline-none focus:border-booth-pink"
                     />
-                    {/* URL / ローカル トグル */}
                     <div className="flex rounded-lg overflow-hidden border border-gray-600 text-xs flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => updateDlEntry(entry.id, 'type', 'url')}
                         className={`px-2 py-1.5 transition-colors ${entry.type === 'url' ? 'bg-gray-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-gray-200'}`}
-                      >
-                        URL
-                      </button>
+                      >URL</button>
                       <button
                         type="button"
                         onClick={() => updateDlEntry(entry.id, 'type', 'local')}
                         className={`px-2 py-1.5 transition-colors ${entry.type === 'local' ? 'bg-gray-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-gray-200'}`}
-                      >
-                        ローカル
-                      </button>
+                      >ローカル</button>
                     </div>
                     {dlEntries.length > 1 && (
                       <button
@@ -258,9 +273,7 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
                         onClick={() => selectFolder(entry.id)}
                         className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 border border-gray-600
                                    text-gray-300 text-xs rounded-lg transition-colors whitespace-nowrap"
-                      >
-                        参照...
-                      </button>
+                      >参照...</button>
                     </div>
                   )}
                 </div>
@@ -276,16 +289,14 @@ export const ManualAddDialog: React.FC<Props> = ({ onClose, onAdded }) => {
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-600 text-gray-300
                          rounded-lg hover:bg-gray-700 transition-colors text-sm"
-            >
-              キャンセル
-            </button>
+            >キャンセル</button>
             <button
               type="submit"
               disabled={submitting}
               className="flex-1 px-4 py-2 bg-booth-pink hover:bg-booth-pink/80
                          text-white rounded-lg disabled:opacity-50 transition-colors text-sm font-medium"
             >
-              {submitting ? '登録中...' : '登録する'}
+              {submitting ? (isEdit ? '保存中...' : '登録中...') : (isEdit ? '保存する' : '登録する')}
             </button>
           </div>
         </form>

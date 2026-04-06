@@ -175,24 +175,28 @@
       (list :orders (nreverse orders)
             :next-url next-url))))
 
-(defun fetch-orders (cookies-json)
+(defun fetch-orders (cookies-json &key progress-callback)
   "ライブラリとギフトページをスクレイピングし、注文plistのリストを返す"
   (let ((all-orders '())
-        ;; 取得対象のURLリスト
-        (start-urls '("https://accounts.booth.pm/library"
-                      "https://accounts.booth.pm/library/gifts")))
-    (dolist (base-url start-urls)
-      (let ((url base-url))
+        (start-urls '(("library" . "https://accounts.booth.pm/library")
+                      ("gifts"   . "https://accounts.booth.pm/library/gifts"))))
+    (dolist (entry start-urls)
+      (let ((section (car entry))
+            (url     (cdr entry))
+            (page    1))
         (loop while url do
           (format t "[scraper] Fetching: ~A~%" url)
-          (let* ((html (fetch-html url cookies-json))
+          (when progress-callback
+            (funcall progress-callback section page (length all-orders)))
+          (let* ((html   (fetch-html url cookies-json))
                  (result (parse-library-page html url)))
             (setf all-orders (append all-orders (getf result :orders)))
             (let ((next (getf result :next-url)))
               (if (and next (not (string= next url)))
                   (progn
                     (setf url next)
-                    (sleep 2.0))  ; サーバ負荷軽減のためのレート制限
+                    (incf page)
+                    (sleep 2.0))
                   (setf url nil)))))))
     (format t "[scraper] Total items fetched from library: ~A~%" (length all-orders))
     all-orders))

@@ -7,11 +7,12 @@ interface Props {
   loading: boolean;
   error: string | null;
   onDelete: (id: number) => void;
+  onEdit: (order: Order) => void;
 }
 
 type FilterType = 'all' | 'scraped' | 'manual';
 
-export const OrderList: React.FC<Props> = ({ orders, loading, error, onDelete }) => {
+export const OrderList: React.FC<Props> = ({ orders, loading, error, onDelete, onEdit }) => {
   const [inputValue, setInputValue] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
@@ -122,7 +123,7 @@ export const OrderList: React.FC<Props> = ({ orders, loading, error, onDelete })
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {filtered.map((order) => (
-              <OrderCard key={order.id} order={order} onDelete={onDelete} />
+              <OrderCard key={order.id} order={order} onDelete={onDelete} onEdit={onEdit} />
             ))}
           </div>
         )}

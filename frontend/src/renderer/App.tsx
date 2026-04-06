@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Order } from './types';
 import { OrderList } from './components/OrderList';
 import { LoginPanel } from './components/LoginPanel';
 import { ManualAddDialog } from './components/ManualAddDialog';
 import { StatusBar } from './components/StatusBar';
+import { SyncProgressOverlay } from './components/SyncProgressOverlay';
 import { useOrders } from './hooks/useOrders';
 import { useSyncStatus } from './hooks/useSyncStatus';
 import { useApi } from './hooks/useApi';
@@ -12,6 +14,7 @@ export const App: React.FC = () => {
   const { orders, loading, error, refetch, deleteOrder } = useOrders();
   const { status, error: statusError, refetch: refetchStatus } = useSyncStatus();
   const [showManualAdd, setShowManualAdd] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [loginChecked, setLoginChecked] = useState(false);
 
   // ログイン状態はsyncStatusから取得
@@ -113,13 +116,37 @@ export const App: React.FC = () => {
               )}
             </div>
           </div>
+        ) : status?.isSyncing && orders.length === 0 ? (
+          /* 初回同期: フルオーバーレイ */
+          <SyncProgressOverlay progress={status.syncProgress} />
         ) : (
-          <OrderList
-            orders={orders}
-            loading={loading}
-            error={error}
-            onDelete={deleteOrder}
-          />
+          <>
+            {/* 同期中バナー (既存データあり) */}
+            {status?.isSyncing && (
+              <div className="flex items-center gap-3 px-6 py-2 bg-yellow-900/30 border-b border-yellow-700/40 text-yellow-300 text-xs">
+                <div className="w-3 h-3 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin flex-shrink-0" />
+                <span>
+                  同期中
+                  {status.syncProgress && (
+                    <>
+                      &nbsp;·&nbsp;
+                      {status.syncProgress.section === 'library' ? 'ライブラリ' : 'ギフト'}
+                      &nbsp;{status.syncProgress.page} ページ目
+                      &nbsp;·&nbsp;
+                      {status.syncProgress.itemsFetched} 件取得済み
+                    </>
+                  )}
+                </span>
+              </div>
+            )}
+            <OrderList
+              orders={orders}
+              loading={loading}
+              error={error}
+              onDelete={deleteOrder}
+              onEdit={setEditingOrder}
+            />
+          </>
         )}
       </main>
 
@@ -130,6 +157,15 @@ export const App: React.FC = () => {
       {showManualAdd && (
         <ManualAddDialog
           onClose={() => setShowManualAdd(false)}
+          onAdded={handleOrderAdded}
+        />
+      )}
+
+      {/* 編集ダイアログ */}
+      {editingOrder && (
+        <ManualAddDialog
+          editOrder={editingOrder}
+          onClose={() => setEditingOrder(null)}
           onAdded={handleOrderAdded}
         />
       )}

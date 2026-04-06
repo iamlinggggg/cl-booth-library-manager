@@ -21,10 +21,11 @@ export function useSyncStatus() {
 
   useEffect(() => {
     fetchStatus();
-    // 5秒ごとにステータスを更新
-    const interval = setInterval(fetchStatus, 5000);
+    // 同期中は1秒、通常時は5秒でポーリング
+    const ms = status?.isSyncing ? 1000 : 5000;
+    const interval = setInterval(fetchStatus, ms);
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [fetchStatus, status?.isSyncing]);
 
   return { status, error, refetch: fetchStatus };
 }

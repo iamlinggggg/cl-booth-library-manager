@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Order, DownloadLink } from '../types';
+import { Order, DownloadLink, ManualOrderInput } from '../types';
 import { useApi } from './useApi';
 
 export function useOrders() {
-  const { get, del, isReady } = useApi();
+  const { get, put, del, isReady } = useApi();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,15 @@ export function useOrders() {
     [del]
   );
 
-  return { orders, loading, error, refetch: fetchOrders, deleteOrder };
+  const updateOrder = useCallback(
+    async (id: number, input: ManualOrderInput) => {
+      await put(`/api/orders/${id}`, input);
+      await fetchOrders();
+    },
+    [put, fetchOrders]
+  );
+
+  return { orders, loading, error, refetch: fetchOrders, deleteOrder, updateOrder };
 }
 
 export function useDownloadLinks(orderId: number | null) {

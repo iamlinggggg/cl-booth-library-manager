@@ -95,6 +95,11 @@
             (cl-ppcre:scan "^/api/orders/\\d+/downloads$" uri))
        (handle-get-downloads uri))
 
+      ;; PUT /api/orders/:id  (手動登録の編集)
+      ((and (eq method :put)
+            (cl-ppcre:scan "^/api/orders/\\d+$" uri))
+       (handle-update-order uri))
+
       ;; DELETE /api/orders/:id
       ((and (eq method :delete)
             (cl-ppcre:scan "^/api/orders/\\d+$" uri))
@@ -227,6 +232,29 @@
                          :|url|   (getf l :url)))
                  links))))))
 
+(defun handle-update-order (uri)
+  (with-error-handling
+    (cl-ppcre:register-groups-bind (id-str)
+        ("^/api/orders/(\\d+)$" uri)
+      (let* ((order-id  (parse-integer id-str))
+             (body      (read-json-body))
+             (item-name (getf body :|itemName|))
+             (shop-name (or (getf body :|shopName|) ""))
+             (item-url  (or (getf body :|itemUrl|) ""))
+             (thumb-url (or (getf body :|thumbnailUrl|) ""))
+             (price     (or (getf body :|price|) 0))
+             (currency  (or (getf body :|currency|) "JPY"))
+             (dl-links  (getf body :|downloadLinks|)))
+        (unless (and item-name (> (length item-name) 0))
+          (return-from handle-update-order (json-error "itemName is required")))
+        (let ((links (mapcar (lambda (dl)
+                               (list :label (or (getf dl :|label|) "download")
+                                     :url   (getf dl :|url|)))
+                             (or dl-links '()))))
+          (cl-booth-library-manager.db:update-manual-order
+           order-id item-name shop-name item-url thumb-url price currency links)
+          (json-ok (list :|message| "Updated")))))))
+
 (defun handle-delete-order (uri)
   (with-error-handling
     (cl-ppcre:register-groups-bind (id-str)
@@ -247,12 +275,18 @@
   (with-error-handling
     (let ((status (cl-booth-library-manager.scheduler:get-status)))
       (set-json-headers)
-      (jonathan:to-json
-       (list :|isSyncing| (if (getf status :is-syncing) t :false)
-             :|lastSyncedAt| (getf status :last-synced-at)
-             :|nextSyncAt| (getf status :next-sync-at)
-             :|secondsUntilNext| (getf status :seconds-until-next)
-             :|isLoggedIn| (if (getf status :is-logged-in) t :false))))))
+      (let ((progress (getf status :sync-progress)))
+        (jonathan:to-json
+         (list :|isSyncing| (if (getf status :is-syncing) t :false)
+               :|lastSyncedAt| (getf status :last-synced-at)
+               :|nextSyncAt| (getf status :next-sync-at)
+               :|secondsUntilNext| (getf status :seconds-until-next)
+               :|isLoggedIn| (if (getf status :is-logged-in) t :false)
+               :|syncProgress| (if progress
+                                   (list :|section|      (getf progress :section)
+                                         :|page|         (getf progress :page)
+                                         :|itemsFetched| (getf progress :items-fetched))
+                                   nil)))))))
 
 (defun handle-item-info ()
   (with-error-handling

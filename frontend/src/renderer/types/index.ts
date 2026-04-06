@@ -20,12 +20,19 @@ export interface DownloadLink {
   url: string;
 }
 
+export interface SyncProgress {
+  section: 'library' | 'gifts';
+  page: number;
+  itemsFetched: number;
+}
+
 export interface SyncStatus {
   isSyncing: boolean;
   lastSyncedAt: number;   // Unix timestamp
   nextSyncAt: number;     // Unix timestamp
   secondsUntilNext: number;
   isLoggedIn: boolean;
+  syncProgress: SyncProgress | null;
 }
 
 export interface ItemInfo {

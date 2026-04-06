@@ -8,11 +8,15 @@
            #:clear-cookies
            #:get-last-synced-at
            #:set-last-synced-at
+           #:get-order-id-by-booth-id
+           #:get-download-urls
+           #:replace-download-links
            #:upsert-order
            #:insert-download-links
            #:get-all-orders
            #:get-order-downloads
            #:add-manual-order
+           #:update-manual-order
            #:delete-order))
 
 (defpackage :cl-booth-library-manager.scraper

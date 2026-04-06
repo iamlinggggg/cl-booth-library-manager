@@ -198,6 +198,28 @@
 ;;; Orders CRUD
 ;;; ---------------------------------------------------------------------------
 
+(defun get-order-id-by-booth-id (booth-order-id)
+  "booth_order_idでorderのDBのidを返す。存在しなければnil"
+  (with-db
+    (sqlite:execute-single *db*
+      "SELECT id FROM orders WHERE booth_order_id = ?"
+      booth-order-id)))
+
+(defun get-download-urls (order-id)
+  "指定注文のダウンロードURL一覧を文字列リストで返す"
+  (with-db
+    (mapcar #'car
+     (sqlite:execute-to-list *db*
+       "SELECT url FROM download_links WHERE order_id = ? ORDER BY id"
+       order-id))))
+
+(defun replace-download-links (order-id links)
+  "既存のダウンロードリンクを全削除して links で差し替える"
+  (with-db
+    (sqlite:execute-non-query *db*
+      "DELETE FROM download_links WHERE order_id = ?" order-id))
+  (insert-download-links order-id links))
+
 (defun upsert-order (booth-order-id item-id item-name shop-name
                      item-url thumbnail-url price currency purchased-at)
   "注文をINSERT OR IGNORE し、そのIDを返す"
@@ -276,6 +298,19 @@
         "UPDATE orders SET is_manual = 1 WHERE id = ?" order-id))
     (insert-download-links order-id download-links)
     order-id))
+
+(defun update-manual-order (order-id item-name shop-name item-url
+                            thumbnail-url price currency download-links)
+  "手動登録済み注文を更新する。download-linksは (:label ... :url ...) のリスト"
+  (with-db
+    (sqlite:execute-non-query *db*
+      "UPDATE orders
+       SET item_name=?, shop_name=?, item_url=?, thumbnail_url=?, price=?, currency=?
+       WHERE id=? AND is_manual=1"
+      item-name shop-name item-url thumbnail-url price currency order-id)
+    (sqlite:execute-non-query *db*
+      "DELETE FROM download_links WHERE order_id=?" order-id))
+  (insert-download-links order-id download-links))
 
 (defun delete-order (order-id)
   (with-db

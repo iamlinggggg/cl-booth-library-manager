@@ -89,6 +89,22 @@ export function useApi() {
     [port]
   );
 
+  const put = useCallback(
+    async <T>(path: string, body?: unknown): Promise<T> => {
+      const p = port ?? (await resolvePort());
+      if (!p) throw new Error('Backend not available');
+      const res = await fetch(`${getBaseUrl(p)}${path}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error ?? 'API error');
+      return data.data as T;
+    },
+    [port]
+  );
+
   const del = useCallback(
     async <T>(path: string): Promise<T> => {
       const p = port ?? (await resolvePort());
@@ -101,5 +117,5 @@ export function useApi() {
     [port]
   );
 
-  return { get, post, del, port, isReady, backendError };
+  return { get, post, put, del, port, isReady, backendError };
 }
