@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getClPort: (): Promise<number | null> =>
     ipcRenderer.invoke('get-cl-port'),
 
+  // バックエンドのエラー状態を取得 (nullなら正常 or まだ起動中)
+  getBackendError: (): Promise<string | null> =>
+    ipcRenderer.invoke('get-backend-error'),
+
   // BOOTHログインウィンドウを開く
   openLoginWindow: (): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('open-login-window'),

@@ -86,21 +86,87 @@
        ON download_links(order_id)")))
 
 ;;; ---------------------------------------------------------------------------
+;;; Cookie encryption (AES-256-CTR)
+;;; ---------------------------------------------------------------------------
+
+(defvar *cookie-key* nil)
+
+(defun cookie-key-path ()
+  (merge-pathnames ".session.key" (get-app-data-dir)))
+
+(defun ensure-cookie-key ()
+  "暗号化キーをファイルから読み込む。なければ生成して保存する"
+  (unless *cookie-key*
+    (let ((path (cookie-key-path)))
+      (setf *cookie-key*
+            (if (probe-file path)
+                (with-open-file (f path :element-type '(unsigned-byte 8))
+                  (let ((k (make-array 32 :element-type '(unsigned-byte 8))))
+                    (read-sequence k f)
+                    k))
+                (let ((k (ironclad:random-data 32)))
+                  (with-open-file (f path
+                                     :direction :output
+                                     :element-type '(unsigned-byte 8)
+                                     :if-does-not-exist :create)
+                    (write-sequence k f))
+                  k))))))
+
+(defun encrypt-cookie-string (plaintext)
+  "平文文字列をAES-256-CTRで暗号化し、hex文字列 (iv || ciphertext) を返す"
+  (ensure-cookie-key)
+  (let* ((plain-bytes (sb-ext:string-to-octets plaintext :external-format :utf-8))
+         (iv          (ironclad:random-data 16))
+         (cipher      (ironclad:make-cipher :aes
+                                            :key *cookie-key*
+                                            :mode :ctr
+                                            :initialization-vector iv))
+         (ciphertext  (copy-seq plain-bytes)))
+    (ironclad:encrypt-in-place cipher ciphertext)
+    (ironclad:byte-array-to-hex-string
+     (concatenate '(vector (unsigned-byte 8)) iv ciphertext))))
+
+(defun decrypt-cookie-string (hex-data)
+  "hex文字列 (iv || ciphertext) をAES-256-CTRで復号し、平文文字列を返す"
+  (ensure-cookie-key)
+  (let* ((data       (ironclad:hex-string-to-byte-array hex-data))
+         (iv         (subseq data 0 16))
+         (ciphertext (subseq data 16))
+         (cipher     (ironclad:make-cipher :aes
+                                           :key *cookie-key*
+                                           :mode :ctr
+                                           :initialization-vector iv))
+         (plaintext  (copy-seq ciphertext)))
+    (ironclad:decrypt-in-place cipher plaintext)
+    (sb-ext:octets-to-string plaintext :external-format :utf-8)))
+
+;;; ---------------------------------------------------------------------------
 ;;; Auth / Cookies
 ;;; ---------------------------------------------------------------------------
 
 (defun save-cookies (cookies-json)
-  "Cookie JSONをDBに保存する"
+  "Cookie JSONを暗号化してDBに保存する"
   (with-db
     (sqlite:execute-non-query *db*
       "INSERT OR REPLACE INTO sync_state (key, value) VALUES ('cookies', ?)"
-      cookies-json)))
+      (concatenate 'string "ENC:" (encrypt-cookie-string cookies-json)))))
 
 (defun get-cookies ()
-  "保存済みCookie JSONを返す。未設定の場合はnil"
-  (with-db
-    (sqlite:execute-single *db*
-      "SELECT value FROM sync_state WHERE key = 'cookies'")))
+  "保存済みCookie JSONを復号して返す。未設定の場合はnil"
+  (let ((raw (with-db
+               (sqlite:execute-single *db*
+                 "SELECT value FROM sync_state WHERE key = 'cookies'"))))
+    (when raw
+      (if (and (> (length raw) 4)
+               (string= (subseq raw 0 4) "ENC:"))
+          ;; 暗号化済み: 復号する
+          (handler-case
+              (decrypt-cookie-string (subseq raw 4))
+            (error (c)
+              (format *error-output* "[db] Cookie decryption failed: ~A~%" c)
+              nil))
+          ;; レガシー平文: そのまま返すが再保存時に暗号化される
+          raw))))
 
 (defun clear-cookies ()
   (with-db

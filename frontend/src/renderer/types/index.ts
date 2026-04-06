@@ -48,6 +48,7 @@ export interface ManualOrderInput {
 // Electron IPC API (window.electronAPI)
 export interface ElectronAPI {
   getClPort: () => Promise<number | null>;
+  getBackendError: () => Promise<string | null>;
   openLoginWindow: () => Promise<{ ok: boolean; error?: string }>;
   openExternal: (url: string) => Promise<void>;
   onLoginSuccess: (callback: () => void) => () => void;

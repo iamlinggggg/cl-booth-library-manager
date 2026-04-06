@@ -15,6 +15,7 @@ import fs from 'fs';
 
 let clProcess: ChildProcess | null = null;
 let clPort: number | null = null;
+let clBackendError: string | null = null;
 let mainWindow: BrowserWindow | null = null;
 
 // プロセス終了時に必ずSBCLを強制終了する (SIGKILLされても動作)
@@ -94,7 +95,10 @@ function startBackend(): Promise<number> {
 
     clProcess.stdout!.on('data', (data: Buffer) => {
       const text = data.toString();
-      console.log('[backend]', text.trim());
+      // 本番ビルドではバックエンド出力をログしない (Cookie等の機密情報漏洩防止)
+      if (!app.isPackaged) {
+        console.log('[backend]', text.trim());
+      }
 
       const match = text.match(/READY:(\d+)/);
       if (match) {
@@ -104,17 +108,22 @@ function startBackend(): Promise<number> {
     });
 
     clProcess.stderr!.on('data', (data: Buffer) => {
-      console.error('[backend stderr]', data.toString().trim());
+      if (!app.isPackaged) {
+        console.error('[backend stderr]', data.toString().trim());
+      }
     });
 
     clProcess.on('exit', (code) => {
       console.log('[main] Backend exited with code:', code);
-      settle(new Error(`Backend exited with code: ${code}`));
+      const err = new Error(`Backend exited with code: ${code}`);
+      clBackendError = err.message;
+      settle(err);
       clProcess = null;
       clPort = null;
     });
 
     clProcess.on('error', (err) => {
+      clBackendError = err.message;
       settle(err);
     });
   });
@@ -275,6 +284,7 @@ async function extractAndSendCookies(sess: Electron.Session) {
 // ---------------------------------------------------------------------------
 
 ipcMain.handle('get-cl-port', () => clPort);
+ipcMain.handle('get-backend-error', () => clBackendError);
 
 ipcMain.handle('open-login-window', async () => {
   try {

@@ -10,6 +10,7 @@
                "hunchentoot"      ; HTTP server
                "jonathan"         ; JSON encode/decode
                "bordeaux-threads" ; Threading
+               "ironclad"         ; Cryptography (AES-256-CTR for cookie storage)
                "uiop")            ; Cross-platform utilities
   :components ((:module "src"
                 :components

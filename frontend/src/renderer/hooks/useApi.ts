@@ -29,10 +29,18 @@ export function useApi() {
 
     let cancelled = false;
 
-    // ポーリング: getClPort() が null を返す間は繰り返す
+    // ポーリング: ポート取得またはエラー検知まで繰り返す
+    // IPCイベント(onBackendError)はレースコンディションで消失する場合があるため
+    // getBackendError() を都度確認することで確実にエラーを検知する
     (async () => {
       while (!cancelled) {
-        const p = await window.electronAPI.getClPort();
+        const [p, err] = await Promise.all([
+          window.electronAPI.getClPort(),
+          window.electronAPI.getBackendError(),
+        ]);
+
+        if (cancelled) return;
+
         if (p) {
           cachedPort = p;
           portPromise = null;
@@ -40,18 +48,17 @@ export function useApi() {
           setIsReady(true);
           return;
         }
+
+        if (err) {
+          setBackendError(err);
+          return;
+        }
+
         await new Promise<void>((r) => setTimeout(r, 500));
       }
     })();
 
-    const unsubError = window.electronAPI.onBackendError((err) => {
-      if (!cancelled) setBackendError(err);
-    });
-
-    return () => {
-      cancelled = true;
-      unsubError();
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const get = useCallback(
