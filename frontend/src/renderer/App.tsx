@@ -8,7 +8,7 @@ import { useSyncStatus } from './hooks/useSyncStatus';
 import { useApi } from './hooks/useApi';
 
 export const App: React.FC = () => {
-  const { post, isReady } = useApi();
+  const { post, isReady, backendError } = useApi();
   const { orders, loading, error, refetch, deleteOrder } = useOrders();
   const { status, error: statusError, refetch: refetchStatus } = useSyncStatus();
   const [showManualAdd, setShowManualAdd] = useState(false);
@@ -86,9 +86,21 @@ export const App: React.FC = () => {
       <main className="flex-1 overflow-hidden flex flex-col">
         {!isReady ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-10 h-10 border-2 border-booth-pink border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-400">バックエンドに接続中...</p>
+            <div className="text-center max-w-lg px-6">
+              {backendError ? (
+                <>
+                  <p className="text-red-400 font-semibold mb-2">バックエンドの起動に失敗しました</p>
+                  <p className="text-gray-500 text-sm mb-4">{backendError}</p>
+                  <p className="text-gray-600 text-xs">
+                    詳細は <code className="text-gray-400">%APPDATA%\cl-booth-library-manager\startup.log</code> を確認してください
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="w-10 h-10 border-2 border-booth-pink border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-gray-400">バックエンドに接続中...</p>
+                </>
+              )}
             </div>
           </div>
         ) : (

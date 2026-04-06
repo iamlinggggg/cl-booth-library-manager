@@ -33,37 +33,70 @@
         (when env (parse-integer env :junk-allowed t)))
       cl-booth-library-manager.api:*port*))
 
+(defvar *log-stream* nil)
+
+(defun open-log-file ()
+  "起動ログをファイルに書き出す (問題診断用)"
+  (handler-case
+      (let* ((log-dir
+               #+windows
+               (merge-pathnames "cl-booth-library-manager/"
+                                (uiop:ensure-directory-pathname
+                                 (or (uiop:getenv "APPDATA")
+                                     (uiop:native-namestring (user-homedir-pathname)))))
+               #-windows
+               (merge-pathnames "cl-booth-library-manager/"
+                                (uiop:ensure-directory-pathname
+                                 (or (uiop:getenv "XDG_DATA_HOME")
+                                     (merge-pathnames ".local/share/"
+                                                      (user-homedir-pathname))))))
+             (log-path (merge-pathnames "startup.log" log-dir)))
+        (ensure-directories-exist log-dir)
+        (setf *log-stream*
+              (open log-path :direction :output
+                             :if-exists :supersede
+                             :if-does-not-exist :create)))
+    (error () nil)))
+
+(defun log-message (fmt &rest args)
+  (let ((msg (apply #'format nil fmt args)))
+    (format t "~A~%" msg)
+    (when *log-stream*
+      (format *log-stream* "~A~%" msg)
+      (force-output *log-stream*))
+    (force-output)))
+
 (defun main ()
-  (format t "=== BOOTH Order Manager v0.2.0 ===~%")
+  (open-log-file)
+  (log-message "=== BOOTH Order Manager v0.2.0 ===")
 
   ;; シグナルハンドラー設定 (対応OSのみ)
   (setup-signal-handlers)
 
   ;; DB初期化
-  (format t "[main] Initializing database...~%")
+  (log-message "[main] Initializing database...")
   (handler-case
       (cl-booth-library-manager.db:init-db)
     (error (c)
-      (format *error-output* "[main] DB init failed: ~A~%" c)
+      (log-message "[main] DB init failed: ~A" c)
       (uiop:quit 1)))
 
   ;; HTTPサーバー起動
   (let ((port (get-port)))
-    (format t "[main] Starting API server on port ~A...~%" port)
+    (log-message "[main] Starting API server on port ~A..." port)
     (handler-case
         (cl-booth-library-manager.api:start-server port)
       (error (c)
-        (format *error-output* "[main] API server failed: ~A~%" c)
+        (log-message "[main] API server failed: ~A" c)
         (uiop:quit 1)))
 
     ;; スケジューラー起動
-    (format t "[main] Starting scheduler...~%")
+    (log-message "[main] Starting scheduler...")
     (cl-booth-library-manager.scheduler:start)
 
     ;; Electronへポートを通知 (stdoutに "READY:<port>" を出力)
-    (format t "READY:~A~%" port)
-    (force-output)
+    (log-message "READY:~A" port)
 
     ;; メインループ
-    (format t "[main] Ready. Waiting for requests...~%")
+    (log-message "[main] Ready. Waiting for requests...")
     (loop (sleep 1))))

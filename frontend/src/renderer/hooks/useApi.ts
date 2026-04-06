@@ -22,6 +22,7 @@ function getBaseUrl(port: number): string {
 export function useApi() {
   const [port, setPort] = useState<number | null>(cachedPort);
   const [isReady, setIsReady] = useState(cachedPort !== null);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cachedPort) return;
@@ -43,7 +44,14 @@ export function useApi() {
       }
     })();
 
-    return () => { cancelled = true; };
+    const unsubError = window.electronAPI.onBackendError((err) => {
+      if (!cancelled) setBackendError(err);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubError();
+    };
   }, []);
 
   const get = useCallback(
@@ -86,5 +94,5 @@ export function useApi() {
     [port]
   );
 
-  return { get, post, del, port, isReady };
+  return { get, post, del, port, isReady, backendError };
 }
