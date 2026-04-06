@@ -5,6 +5,11 @@ Common Lisp と TypeScript (WebView2) を組み合わせて開発された、Win
 ## 概要
 本プロジェクトは、**Common Lisp の学習の一環**として作成された個人用アプリケーションです。BOOTH で購入したアイテムの管理を、デスクトップ上でシームレスに行うことを目的としています。
 
+## ダウンロード
+最新の実行ファイル（EXE形式）は、以下の Releases ページよりダウンロードいただけます。
+
+[**Download cl-booth-library-manager (Releases)**](https://github.com/iamlinggggg/cl-booth-library-manager/releases)
+
 ## 技術スタック
 本アプリは、バックエンドとフロントエンドを分離したモダンな構成を採用しています。
 
