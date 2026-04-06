@@ -25,9 +25,10 @@ ASD="$REPO_ROOT/cl-booth-library-manager.asd"
 sed -i "s/:version \"[^\"]*\"/:version \"$VERSION\"/" "$ASD"
 echo "  Updated: cl-booth-library-manager.asd"
 
-# 2. frontend/package.json
-PKG="$REPO_ROOT/frontend/package.json"
-sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$PKG"
+# 2. frontend/package.json (npm version でJSONを正しく更新)
+cd "$REPO_ROOT/frontend"
+npm version "$VERSION" --no-git-tag-version --allow-same-version
 echo "  Updated: frontend/package.json"
+cd "$REPO_ROOT"
 
 echo "Done. Version set to $VERSION"

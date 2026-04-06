@@ -18,7 +18,15 @@ jobs:
 
       - name: Sync version from git tag
         shell: bash
-        run: bash scripts/set-version.sh "${GITHUB_REF_NAME#v}"
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Setting version: $VERSION"
+          # package.json は npm version で更新 (JSON パースを npm に任せ、改行コード問題を回避)
+          cd frontend && npm version "$VERSION" --no-git-tag-version --allow-same-version
+          cd ..
+          # .asd は sed で更新
+          sed -i "s/:version \"[^\"]*\"/:version \"$VERSION\"/" cl-booth-library-manager.asd
+          echo "package.json version: $(node -p \"require('./frontend/package.json').version\")"
 
       - name: Install SBCL
         run: choco install sbcl --yes
