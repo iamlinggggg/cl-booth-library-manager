@@ -48,3 +48,12 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Tools (ローカル実行バイナリ)
+bin/
+
+# ASDF generated
+system-index.txt
+
+# Claude Code (ローカル設定)
+.claude/

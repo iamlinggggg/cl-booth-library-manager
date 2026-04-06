@@ -18,7 +18,9 @@
 (defpackage :cl-booth-library-manager.scraper
   (:use :cl)
   (:export #:fetch-orders
-           #:fetch-item-info))
+           #:fetch-item-info
+           #:cookie-expired-error
+           #:app-version))
 
 (defpackage :cl-booth-library-manager.scheduler
   (:use :cl)

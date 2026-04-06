@@ -128,7 +128,7 @@
     (let ((status (cl-booth-library-manager.scheduler:get-status)))
       (jonathan:to-json
        (list :|ok| t
-             :|version| "0.2.0"
+             :|version| (cl-booth-library-manager.scraper:app-version)
              :|isLoggedIn| (if (getf status :is-logged-in) t :false)
              :|isSyncing| (if (getf status :is-syncing) t :false)
              :|lastSyncedAt| (getf status :last-synced-at)

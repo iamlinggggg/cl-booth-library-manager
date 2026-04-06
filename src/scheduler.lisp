@@ -82,6 +82,11 @@
                  (format t "[scheduler] Sync complete. ~A orders processed~%"
                          (length orders))
                  :success))
+           (cl-booth-library-manager.scraper:cookie-expired-error (c)
+             (format *error-output* "[scheduler] Cookie expired: ~A~%" c)
+             (cl-booth-library-manager.db:clear-cookies)
+             (format t "[scheduler] Cookies cleared. Re-login required.~%")
+             :auth-expired)
            (error (c)
              (format *error-output* "[scheduler] Sync error: ~A~%" c)
              :error))

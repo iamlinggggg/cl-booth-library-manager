@@ -1,8 +1,27 @@
 (in-package :cl-booth-library-manager.scraper)
 
 ;;; ---------------------------------------------------------------------------
+;;; Conditions
+;;; ---------------------------------------------------------------------------
+
+(define-condition cookie-expired-error (error)
+  ((url :initarg :url :reader cookie-expired-url))
+  (:report (lambda (c s)
+             (format s "Cookie expired or unauthorized (url: ~A)"
+                     (cookie-expired-url c)))))
+
+;;; ---------------------------------------------------------------------------
 ;;; HTTP helpers
 ;;; ---------------------------------------------------------------------------
+
+(defun app-version ()
+  "アプリケーションバージョンを .asd から取得する"
+  (or (ignore-errors
+        (asdf:component-version (asdf:find-system :cl-booth-library-manager)))
+      "0"))
+
+(defun app-user-agent ()
+  (format nil "CL-BOOTH-LIBRARY-MANAGER/~A" (app-version)))
 
 (defun make-request-headers (cookies-json)
   "Cookie JSONリストからHTTPヘッダーalistを生成"
@@ -12,21 +31,35 @@
                                    collect (getf c :|name|)
                                    collect (getf c :|value|)))))
     `(("Cookie" . ,cookie-str)
-      ("User-Agent" . "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+      ("User-Agent" . ,(app-user-agent))
       ("Accept" . "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
       ("Accept-Language" . "ja,en-US;q=0.7,en;q=0.3")
       ("Referer" . "https://accounts.booth.pm/")
       ("Sec-Fetch-Dest" . "document")
       ("Sec-Fetch-Mode" . "navigate"))))
 
+(defun auth-failure-p (status final-uri)
+  "HTTPステータスまたはリダイレクト先URLから認証失敗を判定する"
+  (or (member status '(401 403))
+      (let ((uri-str (quri:render-uri final-uri)))
+        (or (search "sign_in"   uri-str)
+            (search "/login"    uri-str)
+            (search "pixiv.net" uri-str)))))
+
 (defun fetch-html (url &optional cookies-json)
   "URLからHTMLを取得する。cookies-jsonが指定された場合は認証付きで取得"
   (let ((headers (if cookies-json
                      (make-request-headers cookies-json)
-                     `(("User-Agent" . "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                     `(("User-Agent" . ,(app-user-agent))
                        ("Accept-Language" . "ja,en-US;q=0.7,en;q=0.3")))))
     (handler-case
-        (dex:get url :headers headers :force-string t)
+        (multiple-value-bind (body status _headers final-uri)
+            (dex:get url :headers headers :force-string t)
+          (declare (ignore _headers))
+          (when (and cookies-json (auth-failure-p status final-uri))
+            (error 'cookie-expired-error :url url))
+          body)
+      (cookie-expired-error (c) (error c))
       (error (c)
         (error "HTTP fetch failed for ~A: ~A" url c)))))
 

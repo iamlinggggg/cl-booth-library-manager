@@ -68,7 +68,8 @@
 
 (defun main ()
   (open-log-file)
-  (log-message "=== BOOTH Order Manager v0.2.0 ===")
+  (log-message "=== BOOTH Library Manager v~A ==="
+               (cl-booth-library-manager.scraper:app-version))
 
   ;; シグナルハンドラー設定 (対応OSのみ)
   (setup-signal-handlers)
