@@ -1,4 +1,4 @@
-(defpackage :cl-booth-order-manager.db
+(defpackage :cl-booth-library-manager.db
   (:use :cl)
   (:export #:init-db
            #:close-db
@@ -15,24 +15,24 @@
            #:add-manual-order
            #:delete-order))
 
-(defpackage :cl-booth-order-manager.scraper
+(defpackage :cl-booth-library-manager.scraper
   (:use :cl)
   (:export #:fetch-orders
            #:fetch-item-info))
 
-(defpackage :cl-booth-order-manager.scheduler
+(defpackage :cl-booth-library-manager.scheduler
   (:use :cl)
   (:export #:start
            #:stop
            #:trigger-sync
            #:get-status))
 
-(defpackage :cl-booth-order-manager.api
+(defpackage :cl-booth-library-manager.api
   (:use :cl)
   (:export #:start-server
            #:stop-server
            #:*port*))
 
-(defpackage :cl-booth-order-manager
+(defpackage :cl-booth-library-manager
   (:use :cl)
   (:export #:main))

@@ -1,4 +1,4 @@
-(defsystem "cl-booth-order-manager"
+(defsystem "cl-booth-library-manager"
   :version "0.2.0"
   :author "iamlinggggg"
   :license "MIT"
@@ -22,4 +22,4 @@
   :description "BOOTHのライブラリを管理するデスクトップアプリのバックエンド"
   :build-operation "program-op"
   :build-pathname "booth-backend"
-  :entry-point "cl-booth-order-manager:main")
+  :entry-point "cl-booth-library-manager:main")

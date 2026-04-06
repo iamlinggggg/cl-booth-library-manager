@@ -1,1 +1,1 @@
-cl-booth-order-manager.asd
+cl-booth-library-manager.asd

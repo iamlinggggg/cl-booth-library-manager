@@ -14,7 +14,7 @@
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win --x64"
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
     "react": "^18.3.1",

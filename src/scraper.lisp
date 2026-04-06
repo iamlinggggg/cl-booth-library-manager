@@ -1,4 +1,4 @@
-(in-package :cl-booth-order-manager.scraper)
+(in-package :cl-booth-library-manager.scraper)
 
 ;;; ---------------------------------------------------------------------------
 ;;; HTTP helpers

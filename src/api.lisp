@@ -1,4 +1,4 @@
-(in-package :cl-booth-order-manager.api)
+(in-package :cl-booth-library-manager.api)
 
 ;;; ---------------------------------------------------------------------------
 ;;; Server state
@@ -125,7 +125,7 @@
 (defun handle-status ()
   (with-error-handling
     (set-json-headers)
-    (let ((status (cl-booth-order-manager.scheduler:get-status)))
+    (let ((status (cl-booth-library-manager.scheduler:get-status)))
       (jonathan:to-json
        (list :|ok| t
              :|version| "0.2.0"
@@ -147,22 +147,22 @@
         (let ((cookies-json (if (stringp cookies)
                                 cookies
                                 (jonathan:to-json cookies))))
-          (cl-booth-order-manager.db:save-cookies cookies-json))
+          (cl-booth-library-manager.db:save-cookies cookies-json))
         ;; ログイン直後に同期開始
         (handler-case
-            (cl-booth-order-manager.scheduler:trigger-sync)
+            (cl-booth-library-manager.scheduler:trigger-sync)
           (error (c)
             (format *error-output* "[api] trigger-sync failed: ~A~%" c)))
         (json-ok (list :|message| "Cookies saved, sync started"))))))
 
 (defun handle-clear-cookies ()
   (with-error-handling
-    (cl-booth-order-manager.db:clear-cookies)
+    (cl-booth-library-manager.db:clear-cookies)
     (json-ok (list :|message| "Logged out"))))
 
 (defun handle-get-orders ()
   (with-error-handling
-    (let ((orders (cl-booth-order-manager.db:get-all-orders)))
+    (let ((orders (cl-booth-library-manager.db:get-all-orders)))
       (json-ok
        (mapcar (lambda (o)
                  (list :|id|           (getf o :id)
@@ -193,7 +193,7 @@
       ;; URLが指定されていてitem-nameが未指定の場合は商品ページから取得
       (when (and item-url (or (null item-name) (= 0 (length (or item-name "")))))
         (handler-case
-            (let ((info (cl-booth-order-manager.scraper:fetch-item-info item-url)))
+            (let ((info (cl-booth-library-manager.scraper:fetch-item-info item-url)))
               (setf item-name  (or (getf info :item-name) ""))
               (setf shop-name  (or shop-name (getf info :shop-name) ""))
               (setf thumb-url  (or thumb-url (getf info :thumbnail-url) "")))
@@ -208,7 +208,7 @@
                               (list :label (or (getf dl :|label|) "download")
                                     :url   (getf dl :|url|)))
                             (or dl-links '())))
-             (order-id (cl-booth-order-manager.db:add-manual-order
+             (order-id (cl-booth-library-manager.db:add-manual-order
                         item-name shop-name item-url thumb-url
                         price currency links)))
         (json-ok (list :|orderId| order-id))))))
@@ -218,7 +218,7 @@
     (cl-ppcre:register-groups-bind (id-str)
         ("^/api/orders/(\\d+)/downloads$" uri)
       (let* ((order-id (parse-integer id-str))
-             (links (cl-booth-order-manager.db:get-order-downloads order-id)))
+             (links (cl-booth-library-manager.db:get-order-downloads order-id)))
         (json-ok
          (mapcar (lambda (l)
                    (list :|id|    (getf l :id)
@@ -230,21 +230,21 @@
   (with-error-handling
     (cl-ppcre:register-groups-bind (id-str)
         ("^/api/orders/(\\d+)$" uri)
-      (cl-booth-order-manager.db:delete-order (parse-integer id-str))
+      (cl-booth-library-manager.db:delete-order (parse-integer id-str))
       (json-ok (list :|message| "Deleted")))))
 
 (defun handle-trigger-sync ()
   (with-error-handling
     (handler-case
         (progn
-          (cl-booth-order-manager.scheduler:trigger-sync)
+          (cl-booth-library-manager.scheduler:trigger-sync)
           (json-ok (list :|message| "Sync started")))
       (error (c)
         (json-error (format nil "~A" c))))))
 
 (defun handle-sync-status ()
   (with-error-handling
-    (let ((status (cl-booth-order-manager.scheduler:get-status)))
+    (let ((status (cl-booth-library-manager.scheduler:get-status)))
       (set-json-headers)
       (jonathan:to-json
        (list :|isSyncing| (if (getf status :is-syncing) t :false)
@@ -259,7 +259,7 @@
            (url  (getf body :|url|)))
       (unless url
         (return-from handle-item-info (json-error "Missing 'url' field")))
-      (let ((info (cl-booth-order-manager.scraper:fetch-item-info url)))
+      (let ((info (cl-booth-library-manager.scraper:fetch-item-info url)))
         (json-ok
          (list :|itemName|     (getf info :item-name)
                :|shopName|     (getf info :shop-name)

@@ -1,4 +1,4 @@
-(in-package :cl-booth-order-manager)
+(in-package :cl-booth-library-manager)
 
 ;;; ---------------------------------------------------------------------------
 ;;; Entry point
@@ -22,16 +22,16 @@
 (defun shutdown (exit-code)
   "サーバーとスケジューラーを停止してプロセスを終了する"
   (format t "[main] Shutting down...~%")
-  (handler-case (cl-booth-order-manager.scheduler:stop) (error ()))
-  (handler-case (cl-booth-order-manager.api:stop-server) (error ()))
-  (handler-case (cl-booth-order-manager.db:close-db) (error ()))
+  (handler-case (cl-booth-library-manager.scheduler:stop) (error ()))
+  (handler-case (cl-booth-library-manager.api:stop-server) (error ()))
+  (handler-case (cl-booth-library-manager.db:close-db) (error ()))
   (uiop:quit exit-code))
 
 (defun get-port ()
   "使用するポートを決定する (環境変数 BOOTH_PORT または デフォルト)"
   (or (let ((env (uiop:getenv "BOOTH_PORT")))
         (when env (parse-integer env :junk-allowed t)))
-      cl-booth-order-manager.api:*port*))
+      cl-booth-library-manager.api:*port*))
 
 (defun main ()
   (format t "=== BOOTH Order Manager v0.2.0 ===~%")
@@ -42,7 +42,7 @@
   ;; DB初期化
   (format t "[main] Initializing database...~%")
   (handler-case
-      (cl-booth-order-manager.db:init-db)
+      (cl-booth-library-manager.db:init-db)
     (error (c)
       (format *error-output* "[main] DB init failed: ~A~%" c)
       (uiop:quit 1)))
@@ -51,14 +51,14 @@
   (let ((port (get-port)))
     (format t "[main] Starting API server on port ~A...~%" port)
     (handler-case
-        (cl-booth-order-manager.api:start-server port)
+        (cl-booth-library-manager.api:start-server port)
       (error (c)
         (format *error-output* "[main] API server failed: ~A~%" c)
         (uiop:quit 1)))
 
     ;; スケジューラー起動
     (format t "[main] Starting scheduler...~%")
-    (cl-booth-order-manager.scheduler:start)
+    (cl-booth-library-manager.scheduler:start)
 
     ;; Electronへポートを通知 (stdoutに "READY:<port>" を出力)
     (format t "READY:~A~%" port)

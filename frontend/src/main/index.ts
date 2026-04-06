@@ -53,8 +53,8 @@ function getBackendArgs(backendPath: string): string[] {
     return [
       '--eval', '(load (merge-pathnames "quicklisp/setup.lisp" (user-homedir-pathname)))',
       '--eval', `(push #p"${projectRoot}/" ql:*local-project-directories*)`,
-      '--eval', '(ql:quickload :cl-booth-order-manager :silent t)',
-      '--eval', '(cl-booth-order-manager:main)',
+      '--eval', '(ql:quickload :cl-booth-library-manager :silent t)',
+      '--eval', '(cl-booth-library-manager:main)',
     ];
   }
   return [];

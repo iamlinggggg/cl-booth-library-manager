@@ -6,7 +6,7 @@ echo [setup] Installing project dependencies via Quicklisp...
 
 sbcl --eval "(load (merge-pathnames \"quicklisp/setup.lisp\" (user-homedir-pathname)))" ^
      --eval "(push #p\"%cd%/\" ql:*local-project-directories*)" ^
-     --eval "(ql:quickload :cl-booth-order-manager)" ^
+     --eval "(ql:quickload :cl-booth-library-manager)" ^
      --eval "(quit)"
 
 if %errorlevel% neq 0 (

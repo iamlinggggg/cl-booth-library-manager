@@ -4,12 +4,12 @@
 
 (ql:register-local-projects)
 
-(ql:quickload :cl-booth-order-manager :silent t)
+(ql:quickload :cl-booth-library-manager :silent t)
 
 (let ((out-dir (merge-pathnames "dist-cl/" *default-pathname-defaults*)))
   (ensure-directories-exist out-dir)
   (sb-ext:save-lisp-and-die
  (merge-pathnames "booth-backend.exe" out-dir)
- :toplevel #'cl-booth-order-manager:main
+ :toplevel #'cl-booth-library-manager:main
  :executable t
  :compression nil))

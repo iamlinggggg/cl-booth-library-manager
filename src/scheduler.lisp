@@ -1,4 +1,4 @@
-(in-package :cl-booth-order-manager.scheduler)
+(in-package :cl-booth-library-manager.scheduler)
 
 ;;; ---------------------------------------------------------------------------
 ;;; State
@@ -28,7 +28,7 @@
 (defun can-sync-p ()
   "55分以上経過 かつ ログイン済み かつ 現在同期中でない"
   (and (not *is-syncing*)
-       (cl-booth-order-manager.db:is-logged-in)
+       (cl-booth-library-manager.db:is-logged-in)
        (>= (seconds-since-last-sync) +min-interval-seconds+)))
 
 ;;; ---------------------------------------------------------------------------
@@ -46,18 +46,18 @@
     (setf *is-syncing* t)
     (unwind-protect
          (handler-case
-             (let ((cookies (cl-booth-order-manager.db:get-cookies)))
+             (let ((cookies (cl-booth-library-manager.db:get-cookies)))
                (unless cookies
                  (format t "[scheduler] No cookies, skipping sync~%")
                  (return-from do-sync :no-auth))
 
                (format t "[scheduler] Starting sync at ~A~%" (unix-now))
-               (let ((orders (cl-booth-order-manager.scraper:fetch-orders cookies)))
+               (let ((orders (cl-booth-library-manager.scraper:fetch-orders cookies)))
                  ;; 各注文をDBに保存
                  (dolist (order orders)
                    (dolist (item (getf order :items))
                      (let ((order-id
-                             (cl-booth-order-manager.db:upsert-order
+                             (cl-booth-library-manager.db:upsert-order
                               ;; booth_order_id = "<注文ID>-<商品ID>" で一意にする
                               (format nil "~A-~A"
                                       (getf order :order-id)
@@ -70,14 +70,14 @@
                               (parse-price (getf item :price))
                               "JPY"
                               (getf order :purchased-at))))
-                       (cl-booth-order-manager.db:insert-download-links
+                       (cl-booth-library-manager.db:insert-download-links
                         order-id
                         (getf item :downloads)))))
 
                  ;; 最終同期時刻を記録
                  (let ((now (unix-now)))
                    (setf *last-synced-at* now)
-                   (cl-booth-order-manager.db:set-last-synced-at now))
+                   (cl-booth-library-manager.db:set-last-synced-at now))
 
                  (format t "[scheduler] Sync complete. ~A orders processed~%"
                          (length orders))
@@ -121,13 +121,13 @@
   (declare (ignore sync-fn))
   ;; DBから最終同期時刻を復元
   (setf *last-synced-at*
-        (or (cl-booth-order-manager.db:get-last-synced-at) 0))
+        (or (cl-booth-library-manager.db:get-last-synced-at) 0))
 
   (format t "[scheduler] Last synced at: ~A (now: ~A, delta: ~As)~%"
           *last-synced-at* (unix-now) (seconds-since-last-sync))
 
   ;; 初回: 55分以上経過していれば起動5秒後に同期開始
-  (when (and (cl-booth-order-manager.db:is-logged-in)
+  (when (and (cl-booth-library-manager.db:is-logged-in)
              (>= (seconds-since-last-sync) +min-interval-seconds+))
     (bordeaux-threads:make-thread
      (lambda ()
@@ -150,7 +150,7 @@
 
 (defun trigger-sync ()
   "手動同期トリガー (強制的に実行する)"
-  (if (cl-booth-order-manager.db:is-logged-in)
+  (if (cl-booth-library-manager.db:is-logged-in)
       (bordeaux-threads:make-thread
        (lambda () (do-sync :force t))  ;; ← ここに :force t を追加！
        :name "booth-manual-sync")
@@ -164,4 +164,4 @@
           :last-synced-at *last-synced-at*
           :next-sync-at   next-at
           :seconds-until-next (max 0 (- next-at now))
-          :is-logged-in   (cl-booth-order-manager.db:is-logged-in))))
+          :is-logged-in   (cl-booth-library-manager.db:is-logged-in))))

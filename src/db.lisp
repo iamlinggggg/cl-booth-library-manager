@@ -1,4 +1,4 @@
-(in-package :cl-booth-order-manager.db)
+(in-package :cl-booth-library-manager.db)
 
 ;;; ---------------------------------------------------------------------------
 ;;; Connection management
@@ -26,7 +26,7 @@
               (uiop:native-namestring
                (merge-pathnames ".local/share/"
                                 (user-homedir-pathname))))))
-    (let ((dir (merge-pathnames "cl-booth-order-manager/"
+    (let ((dir (merge-pathnames "cl-booth-library-manager/"
                                 (uiop:ensure-directory-pathname base))))
       (ensure-directories-exist dir)
       dir)))
