@@ -39,46 +39,55 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist-cl | Out-Null
 
-          function Copy-Dll($name, $searchRoots) {
-            foreach ($root in $searchRoots) {
-              $found = Get-ChildItem $root -Recurse -Filter $name -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($found) {
-                Copy-Item $found.FullName "dist-cl\$name" -Force
-                Write-Host "Copied $name from $($found.FullName)"
-                return $true
-              }
-            }
-            Write-Warning "$name not found in search roots"
-            return $false
+          # ------------------------------------------------------------------
+          # libsqlite3.dll
+          # SBCLは cl-sqlite ロード時に "libsqlite3.dll" という名前を記録する。
+          # choco install sqlite は "sqlite3.dll" という名前でインストールするため、
+          # "libsqlite3.dll" という名前でコピーしないとSBCLが見つけられない。
+          # ------------------------------------------------------------------
+          $sqliteSource = $null
+          foreach ($candidate in @(
+            "C:\ProgramData\chocolatey\lib\SQLite\tools\sqlite3.dll",
+            "C:\ProgramData\chocolatey\bin\sqlite3.dll"
+          )) {
+            if (Test-Path $candidate) { $sqliteSource = $candidate; break }
+          }
+          if (-not $sqliteSource) {
+            $found = Get-ChildItem "C:\ProgramData\chocolatey" -Recurse -Filter "sqlite3.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $sqliteSource = $found.FullName }
+          }
+          if ($sqliteSource) {
+            Copy-Item $sqliteSource "dist-cl\libsqlite3.dll" -Force
+            Write-Host "Copied as libsqlite3.dll from: $sqliteSource"
+          } else {
+            Write-Error "sqlite3.dll not found"; exit 1
           }
 
-          # sqlite3.dll
-          Copy-Dll "sqlite3.dll" @(
-            "C:\ProgramData\chocolatey"
-          ) | Out-Null
-
+          # ------------------------------------------------------------------
           # OpenSSL DLLs (hunchentoot/cl+ssl の依存)
-          # windows-latest では Git for Windows の mingw64/bin に存在する
+          # SBCL が記録するDLL名に合わせてコピーする。
+          # windows-latest では Git for Windows (mingw64) にlibssl/libcryptoがある。
+          # ------------------------------------------------------------------
           $opensslRoots = @(
             "C:\Program Files\Git\mingw64\bin",
             "C:\Program Files\Git\usr\bin",
             "C:\Program Files\OpenSSL-Win64\bin",
-            "C:\Program Files\OpenSSL\bin",
-            "C:\Windows\System32"
+            "C:\Program Files\OpenSSL\bin"
           )
-          # libssl / libcrypto (バージョン名が異なる場合があるため複数パターンを試行)
           foreach ($pattern in @("libssl*.dll", "libcrypto*.dll")) {
+            $copied = $false
             foreach ($root in $opensslRoots) {
               $found = Get-ChildItem $root -Filter $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
               if ($found) {
                 Copy-Item $found.FullName "dist-cl\$($found.Name)" -Force
-                Write-Host "Copied $($found.Name) from $($found.FullName)"
-                break
+                Write-Host "Copied $($found.Name) from: $($found.FullName)"
+                $copied = $true; break
               }
             }
+            if (-not $copied) { Write-Warning "Not found: $pattern" }
           }
 
-          Write-Host "dist-cl contents:"
+          Write-Host "`ndist-cl contents:"
           Get-ChildItem dist-cl | ForEach-Object { Write-Host "  $($_.Name)" }
 
       - name: Setup Node.js
