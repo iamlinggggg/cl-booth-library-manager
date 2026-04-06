@@ -318,6 +318,87 @@
       "DELETE FROM orders WHERE id = ?" order-id)))
 
 ;;; ---------------------------------------------------------------------------
+;;; Thumbnail cache
+;;; ---------------------------------------------------------------------------
+
+(defun thumbnail-cache-dir ()
+  "サムネイルキャッシュディレクトリを返す (なければ作成)"
+  (let ((dir (merge-pathnames "thumbnails/" (get-app-data-dir))))
+    (ensure-directories-exist dir)
+    dir))
+
+(defun thumbnail-cache-path (order-id)
+  "指定orderのサムネイルキャッシュファイルパスを返す"
+  (merge-pathnames (format nil "~A" order-id) (thumbnail-cache-dir)))
+
+(defun thumbnail-cached-p (order-id)
+  "ローカルキャッシュが存在するか"
+  (not (null (probe-file (thumbnail-cache-path order-id)))))
+
+(defun save-thumbnail (order-id bytes)
+  "画像バイト列をキャッシュファイルとして保存する"
+  (let ((path (thumbnail-cache-path order-id)))
+    (with-open-file (f path
+                       :direction :output
+                       :element-type '(unsigned-byte 8)
+                       :if-exists :supersede
+                       :if-does-not-exist :create)
+      (write-sequence bytes f))
+    path))
+
+(defun detect-image-content-type (path)
+  "ファイル先頭バイトからContent-Typeを推定する"
+  (handler-case
+      (with-open-file (f path :element-type '(unsigned-byte 8))
+        (let ((hdr (make-array 8 :element-type '(unsigned-byte 8) :initial-element 0)))
+          (read-sequence hdr f)
+          (cond
+            ;; JPEG: FF D8
+            ((and (= (aref hdr 0) #xFF) (= (aref hdr 1) #xD8))
+             "image/jpeg")
+            ;; PNG: 89 50 4E 47
+            ((and (= (aref hdr 0) #x89) (= (aref hdr 1) #x50)
+                  (= (aref hdr 2) #x4E) (= (aref hdr 3) #x47))
+             "image/png")
+            ;; GIF: 47 49 46
+            ((and (= (aref hdr 0) #x47) (= (aref hdr 1) #x49)
+                  (= (aref hdr 2) #x46))
+             "image/gif")
+            ;; WebP: RIFF....
+            ((and (= (aref hdr 0) #x52) (= (aref hdr 1) #x49)
+                  (= (aref hdr 2) #x46) (= (aref hdr 3) #x46))
+             "image/webp")
+            (t "image/jpeg"))))
+    (error () "image/jpeg")))
+
+(defun get-thumbnail-url (order-id)
+  "指定orderのthumbnail_urlを返す"
+  (with-db
+    (sqlite:execute-single *db*
+      "SELECT thumbnail_url FROM orders WHERE id = ?"
+      order-id)))
+
+(defun get-orders-needing-thumbnail ()
+  "thumbnail_urlがあってキャッシュが未作成のorder行を (id thumbnail-url) リストで返す"
+  (let ((rows (with-db
+                (sqlite:execute-to-list *db*
+                  "SELECT id, thumbnail_url FROM orders WHERE thumbnail_url != ''"))))
+    (remove-if (lambda (row) (thumbnail-cached-p (nth 0 row))) rows)))
+
+(defun update-thumbnail-url (order-id thumbnail-url)
+  "既存orderのthumbnail_urlをDBで更新する"
+  (with-db
+    (sqlite:execute-non-query *db*
+      "UPDATE orders SET thumbnail_url = ? WHERE id = ?"
+      thumbnail-url order-id)))
+
+(defun delete-thumbnail-cache (order-id)
+  "ローカルサムネイルキャッシュファイルを削除する"
+  (let ((path (thumbnail-cache-path order-id)))
+    (when (probe-file path)
+      (delete-file path))))
+
+;;; ---------------------------------------------------------------------------
 ;;; Helpers
 ;;; ---------------------------------------------------------------------------
 

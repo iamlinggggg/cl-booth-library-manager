@@ -113,6 +113,11 @@
       ((and (eq method :get) (string= uri "/api/sync/status"))
        (handle-sync-status))
 
+      ;; GET /api/thumbnails/:id  (サムネイルキャッシュ配信)
+      ((and (eq method :get)
+            (cl-ppcre:scan "^/api/thumbnails/\\d+$" uri))
+       (handle-get-thumbnail uri))
+
       ;; POST /api/item-info  (商品情報取得)
       ((and (eq method :post) (string= uri "/api/item-info"))
        (handle-item-info))
@@ -287,6 +292,29 @@
                                          :|page|         (getf progress :page)
                                          :|itemsFetched| (getf progress :items-fetched))
                                    nil)))))))
+
+(defun handle-get-thumbnail (uri)
+  (cl-ppcre:register-groups-bind (id-str)
+      ("^/api/thumbnails/(\\d+)$" uri)
+    (let* ((order-id (parse-integer id-str))
+           (path (cl-booth-library-manager.db:thumbnail-cache-path order-id)))
+      (if (probe-file path)
+          ;; ローカルキャッシュあり: ファイルをそのまま配信
+          (let ((content-type (cl-booth-library-manager.db:detect-image-content-type path)))
+            (setf (hunchentoot:header-out "Cache-Control") "public, max-age=86400")
+            (hunchentoot:handle-static-file path content-type))
+          ;; キャッシュなし: 外部URLにリダイレクト (なければ404)
+          (let ((thumb-url (cl-booth-library-manager.db:get-thumbnail-url order-id)))
+            (if (and thumb-url (> (length thumb-url) 0))
+                (progn
+                  (set-json-headers)
+                  (setf (hunchentoot:return-code*) 302)
+                  (setf (hunchentoot:header-out "Location") thumb-url)
+                  "")
+                (progn
+                  (set-json-headers)
+                  (setf (hunchentoot:return-code*) 404)
+                  (jonathan:to-json (list :|ok| nil :|error| "No thumbnail")))))))))
 
 (defun handle-item-info ()
   (with-error-handling

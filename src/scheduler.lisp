@@ -75,19 +75,32 @@
                                      (cl-booth-library-manager.db:get-order-id-by-booth-id
                                       booth-order-id)))
                               (if existing-id
-                                  ;; 既存アイテム: DLリンクが変わっていれば更新、同じならスキップ
+                                  ;; 既存アイテム: DLリンクとサムネイルURLを確認して必要なら更新
                                   (let* ((new-links (getf item :downloads))
                                          (new-urls  (sort (mapcar (lambda (l) (getf l :url)) new-links)
                                                           #'string<))
                                          (old-urls  (sort (cl-booth-library-manager.db:get-download-urls
                                                            existing-id)
-                                                          #'string<)))
+                                                          #'string<))
+                                         (new-thumb (or (getf item :thumb-url) ""))
+                                         (old-thumb (or (cl-booth-library-manager.db:get-thumbnail-url
+                                                         existing-id) "")))
+                                    ;; DLリンク更新
                                     (if (equal new-urls old-urls)
                                         (incf skipped-count)
                                         (progn
                                           (cl-booth-library-manager.db:replace-download-links
                                            existing-id new-links)
-                                          (incf updated-count))))
+                                          (incf updated-count)))
+                                    ;; サムネイルURL変化 → DB更新 + キャッシュ無効化
+                                    (when (and (> (length new-thumb) 0)
+                                               (not (string= new-thumb old-thumb)))
+                                      (format t "[scheduler] Thumbnail URL changed: ~A~%"
+                                              booth-order-id)
+                                      (cl-booth-library-manager.db:update-thumbnail-url
+                                       existing-id new-thumb)
+                                      (cl-booth-library-manager.db:delete-thumbnail-cache
+                                       existing-id)))
                                   ;; 新規アイテム: 挿入
                                   (let ((order-id
                                           (cl-booth-library-manager.db:upsert-order
@@ -106,6 +119,27 @@
                                     (incf new-count))))))
                         (format t "[scheduler] Sync DB update: ~A new, ~A dl-updated, ~A skipped~%"
                                 new-count updated-count skipped-count))
+
+                      ;; サムネイルキャッシュ (バックグラウンドで実行)
+                      (let ((needs (cl-booth-library-manager.db:get-orders-needing-thumbnail)))
+                        (when needs
+                          (bordeaux-threads:make-thread
+                           (lambda ()
+                             (format t "[scheduler] Caching ~A thumbnails...~%" (length needs))
+                             (dolist (row needs)
+                               (let ((order-id (nth 0 row))
+                                     (url      (nth 1 row)))
+                                 (handler-case
+                                     (let ((data (cl-booth-library-manager.scraper:download-image url)))
+                                       (when data
+                                         (cl-booth-library-manager.db:save-thumbnail order-id data)))
+                                   (error (c)
+                                     (format *error-output*
+                                             "[scheduler] Thumbnail cache failed ~A: ~A~%"
+                                             order-id c)))
+                                 (sleep 0.3)))
+                             (format t "[scheduler] Thumbnail caching done~%"))
+                           :name "booth-thumbnail-cache")))
 
                       ;; 最終同期時刻を記録
                       (let ((now (unix-now)))

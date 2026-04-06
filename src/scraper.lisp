@@ -202,6 +202,26 @@
     all-orders))
 
 ;;; ---------------------------------------------------------------------------
+;;; Image download
+;;; ---------------------------------------------------------------------------
+
+(defun download-image (url)
+  "画像URLからバイト列を取得する。失敗時はnil"
+  (handler-case
+      (let ((data (dex:get url
+                           :headers `(("User-Agent" . ,(app-user-agent)))
+                           :connect-timeout 10
+                           :read-timeout 15)))
+        ;; dexador はバイナリContent-Typeのとき (array (unsigned-byte 8)) を返す
+        ;; 文字列で返ってきた場合はlatin-1で再エンコード (バイト保存のため)
+        (etypecase data
+          ((array (unsigned-byte 8)) data)
+          (string (sb-ext:string-to-octets data :external-format :latin-1))))
+    (error (c)
+      (format *error-output* "[scraper] download-image failed ~A: ~A~%" url c)
+      nil)))
+
+;;; ---------------------------------------------------------------------------
 ;;; Item info scraping (手動登録用)
 ;;; ---------------------------------------------------------------------------
 

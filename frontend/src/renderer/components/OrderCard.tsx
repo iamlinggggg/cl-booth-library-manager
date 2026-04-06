@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Order } from '../types';
 import { useDownloadLinks } from '../hooks/useOrders';
+import { useApi } from '../hooks/useApi';
 
 interface Props {
   order: Order;
@@ -12,6 +13,10 @@ export const OrderCard: React.FC<Props> = ({ order, onDelete, onEdit }) => {
   const [expanded, setExpanded] = useState(false);
   const { links, loading } = useDownloadLinks(expanded ? order.id : null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { port } = useApi();
+  const thumbnailSrc = port
+    ? `http://localhost:${port}/api/thumbnails/${order.id}`
+    : order.thumbnailUrl;
 
   const isLocalPath = (url: string) =>
     !url.startsWith('http://') && !url.startsWith('https://');
@@ -45,9 +50,9 @@ export const OrderCard: React.FC<Props> = ({ order, onDelete, onEdit }) => {
       <div className="flex gap-4 p-4">
         {/* サムネイル */}
         <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-700">
-          {order.thumbnailUrl ? (
+          {thumbnailSrc ? (
             <img
-              src={order.thumbnailUrl}
+              src={thumbnailSrc}
               alt={order.itemName}
               className="w-full h-full object-cover"
               onError={(e) => {

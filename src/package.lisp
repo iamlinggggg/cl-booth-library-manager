@@ -13,6 +13,14 @@
            #:replace-download-links
            #:upsert-order
            #:insert-download-links
+           #:thumbnail-cache-path
+           #:thumbnail-cached-p
+           #:save-thumbnail
+           #:detect-image-content-type
+           #:get-thumbnail-url
+           #:get-orders-needing-thumbnail
+           #:update-thumbnail-url
+           #:delete-thumbnail-cache
            #:get-all-orders
            #:get-order-downloads
            #:add-manual-order
@@ -23,6 +31,7 @@
   (:use :cl)
   (:export #:fetch-orders
            #:fetch-item-info
+           #:download-image
            #:cookie-expired-error
            #:app-version))
 
