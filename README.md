@@ -38,7 +38,7 @@ Common Lisp と TypeScript (WebView2) を組み合わせて開発された、Win
 本プロジェクトは **MIT License** のもとで公開されています。
 
 ## 問い合わせ
-本アプリケーションに関する問い合わせ、不具合報告はGitHubのissueに投稿するか、制作者のTwitter(現X):@IAMLinggggg のダイレクトメッセージにてお願いいたします。
+本アプリケーションに関する問い合わせ、不具合報告はGitHubのissue、または制作者のTwitter(現X):@IAMLinggggg のダイレクトメッセージにて承っております。
 
 ---
 Copyright (c) 2026 iamlinggggg
